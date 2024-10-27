@@ -189,13 +189,17 @@ if __name__ == "__main__":
        [1.0, 1.0, -1.0]
     ]
     
+
+
+    #Implement the trainning loop
+
     ys = [1.0, -1.0, -1.0, 1.0]
-    ypred = [n(x) for x in xs]
-    print(ypred)
-    loss = sum(((yout - ygt)**2 for ygt, yout in zip(ys, ypred)), start=Value(0))
+    for epoch in range(20):
+        ypred = [n(x) for x in xs]
+        loss = sum(((yout - ygt)**2 for ygt, yout in zip(ys, ypred)), start=Value(0))
+        loss.backward()
+        for p in n.parameters():
+            p.data += -0.01 * p.grad
 
-    loss.backward()
 
-    for p in n.parameters():
-        p.data += 0.01 * p.grad
-
+        print(f"Epoch {epoch} Loss {loss.data}")
