@@ -34,8 +34,8 @@ class Tensor:
     def __sub__(self, other):
         return self + (-other)
 
-#     def __truediv__(self, other):
-#         return self * other**-1
+    def __truediv__(self, other):
+        return self * other**-1
 
     def __pow__(self, other):
         assert isinstance(other, (int, float))
