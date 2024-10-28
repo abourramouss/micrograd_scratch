@@ -11,6 +11,9 @@ class Tensor:
         self._prev = set(_children)
         self._op = _op
         self.label = label
+    @property
+    def shape(self):
+        return self.data.shape
 
     def __repr__(self):
         return f"Tensor(data={self.data})"
@@ -129,64 +132,91 @@ class Tensor:
         for v in reversed(topo):
             v._backward()
 
-# def trace(root):
-#     nodes, edges = set(), set()
+def trace(root):
+    nodes, edges = set(), set()
 
-#     def build(v):
-#         if v not in nodes:
-#             nodes.add(v)
-#             for child in v._prev:
-#                 edges.add((child, v))
-#                 build(child)
+    def build(v):
+        if v not in nodes:
+            nodes.add(v)
+            for child in v._prev:
+                edges.add((child, v))
+                build(child)
 
-#     build(root)
-#     return nodes, edges
+    build(root)
+    return nodes, edges
 
+def format_tensor(tensor):
+    if np.isscalar(tensor):
+        return f"{tensor:.4f}"
+    elif tensor.ndim == 1:
+        return "[" + ", ".join([f"{val:.4f}" for val in tensor]) + "]"
+    else:
+        return np.array2string(
+            tensor,
+            formatter={'float_kind': lambda x: f"{x:.4f}"},
+            separator=', ',
+            max_line_width=1000  # Prevent line breaks
+        )
 
-# def draw_dot(root, format="svg", rankdir="LR"):
-#     """
-#     format: png | svg | ...
-#     rankdir: TB (top to bottom graph) | LR (left to right)
-#     """
-#     assert rankdir in ["LR", "TB"]
-#     nodes, edges = trace(root)
-#     dot = Digraph(
-#         format=format, graph_attr={"rankdir": rankdir}
-#     )  # , node_attr={'rankdir': 'TB'})
-
-#     for n in nodes:
-#         dot.node(
-#             name=str(id(n)),
-#             label="{ %s | data %.4f | grad %.4f }" % (n.label, n.data, n.grad),
-#             shape="record",
-#         )
-#         if n._op:
-#             dot.node(name=str(id(n)) + n._op, label=n._op)
-#             dot.edge(str(id(n)) + n._op, str(id(n)))
-
-#     for n1, n2 in edges:
-#         dot.edge(str(id(n1)), str(id(n2)) + n2._op)
-
-#     dot.render("graph", format="png", cleanup=True)
-#     return dot
-
-
-# class Neuron():
-#     def __init__(self, nin, shape):
-#         self.w = [Tensor(np.random.uniform(low=-1, high=1, size = shape)) for _ in range(nin)]
-#         self.b = Tensor(random.uniform(-1, 1)) 
+def draw_dot(root, format="png", rankdir="LR"):
+    """
+    format: png | svg | ...
+    rankdir: TB (top to bottom graph) | LR (left to right)
+    """
+    assert rankdir in ["LR", "TB"]
+    nodes, edges = trace(root)
+    dot = Digraph(
+        format=format, graph_attr={"rankdir": rankdir}
+    )
     
-#     def __call__(self, x):
-#         # x * w + b
+    for n in nodes:
+        data_str = format_tensor(n.data)
+        grad_str = format_tensor(n.grad)
         
-#         assert self.w[0].data.shape == x.shape
-           
-#         act =  np.sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
-#         # out = act.tanh()
-#         # return out
+        dot.node(
+            name=str(id(n)),
+            label="{ %s | data: %s | grad: %s }" % (
+                n.label if n.label else n._op if n._op else "",
+                data_str,
+                grad_str
+            ),
+            shape="record",
+            fontsize='10'
+        )
+        if n._op:
+            op_node = str(id(n)) + n._op
+            dot.node(name=op_node, label=n._op, shape="circle")
+            dot.edge(op_node, str(id(n)))
     
-#     def parameters(self):
-#         return self.w + [self.b]
+    for n1, n2 in edges:
+        if n2._op:
+            op_node = str(id(n2)) + n2._op
+            dot.edge(str(id(n1)), op_node)
+        else:
+            dot.edge(str(id(n1)), str(id(n2)))
+    
+    dot.render("graph", format=format, cleanup=True)
+    return dot
+
+class Neuron():
+    def __init__(self, nin):
+        self.b = Tensor(random.uniform(-1, 1)) 
+        self.w = Tensor(np.random.uniform(low=-1, high=1, size = (nin, 1)))
+    def __call__(self, x):
+        # x * w + b
+        out = x @ self.w + self.b
+        return out
+
+        
+        
+
+        #x = [1,2] = x1, x2
+        #act = np.sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
+        # out = act.tanh()
+        # return out
+    
+    def parameters(self):
+        return self.w + [self.b]
 
 # class Layer:
 #     def __init__(self, nin, nout):
@@ -213,18 +243,36 @@ class Tensor:
 
 if __name__ == "__main__":
 
-    a = Tensor(np.array([[1,2],[1,2]]))
-    b = Tensor(np.array([[1,2],[1,2]]))
+    a = Tensor(np.array([1,2]))
+    # b = Tensor(np.array([[1,2],[1,2]]))
 
-    c = a @ b
+    # c = a @ b
+
+    # d = Tensor(np.array([[1,2],[1,2]]))
+    # e = Tensor(np.array([[1,2],[1,2]]))  
     
-    
+    # f = d * e
+
+    # z = c + f
 
     
-    c.backward()
-    print(a.grad)
-    print(b.grad)
-    print(c.grad)
+    # z.backward()
+    # print(a.grad)
+    # print(b.grad)
+    # print(c.grad)
+    
+    # draw_dot(z)
+
+
+    n = Neuron(2)
+    activation = n(a)
+    activation.backward()
+
+
+
+    draw_dot(activation)
+    #we just have one neuron, with one input as a tensor, now we need to think how to
+    #implement the forward pass.
     # L = c.tanh()
     # L.backward()
     #c.backward()
