@@ -45,20 +45,32 @@ class Tensor:
 #         out._backward = _backward
 #         return out
 
-    
-#     def __mul__(self, other):
-#         other = other if isinstance(other, Value) else Value(other)
-#         out = Value(self.data * other.data, (self, other), "*")
 
-#         def _backward():
-#             self.grad += other.data * out.grad
-#             other.grad += self.data * out.grad
+    def __mul__(self, other):
+        #element-wise multiplication
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(np.multiply(self.data, other.data), (self, other), "*")
 
-#         out._backward = _backward
-#         return out
+        def __backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
 
-#     def __rmul__(self, other):
-#         return self * other
+        out._backward = __backward
+        return out
+    def __matmul__(self, other):
+        #matrix multiplication
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(np.matmul(self.data, other.data), (self, other), "*")
+
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+
+        out._backward = _backward
+        return out
+
+    def __rmul__(self, other):
+        return self * other
 
 #     def tanh(self):
 #         x = self.data
@@ -184,18 +196,29 @@ class Tensor:
 if __name__ == "__main__":
 
     
-    arr = np.array([1,2,3])
-    arr1 = np.array([1,2,3])
+    arr = np.array([[1,2],[1,2]])
+    arr1 = np.array([[1,2],[1,2]])
     
     # let's make this easier by using numpy
     a = Tensor(arr)
     b = Tensor(arr1)
-    print(a + b)
     
-    
-    print(arr.shape == arr1.shape)
+        
+    L = a * b
 
-    print(arr.shape)
+    
+
+    L.grad = 1.0
+    
+    L._backward()
+    
+    print("gradients")
+    print(a.grad)
+    print(b.grad)
+    print(L.data, L.grad)
+    
+
+
     # n = MLP(3, [4,4,1])
     # print(n.parameters())
     # xs = [
