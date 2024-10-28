@@ -6,7 +6,7 @@ import numpy as np
 class Tensor:
     def __init__(self, data, _children=(), _op="", label=""):
         self.data = data
-        self.grad = np.zeros_like(data)
+        self.grad = 0
         self._backward = lambda: None
         self._prev = set(_children)
         self._op = _op
@@ -17,11 +17,11 @@ class Tensor:
 
     def __add__(self, other):
         
-        assert self.data.shape == other.data.shape
         other = other if isinstance(other, Tensor) else Tensor(other)
         
         #use numpy to add two tensors
-
+        #other could pontentially be a scalar
+        
         out = Tensor(self.data + other.data, (self, other), "+")
 
         def _backward():
@@ -80,43 +80,40 @@ class Tensor:
 
         other = other if isinstance(other, Tensor) else Tensor(other)
         out = Tensor(self.data @ other.data, (self, other), "@")
-
-        def _backward():
-            self.grad += other.data.T @ out.grad
+        def _backward():            
+            self.grad += out.grad @ other.data.T
             other.grad += self.data.T @ out.grad
-
         out._backward = _backward
         return out
 
     def __rmul__(self, other):
         return self * other
 
-#     def tanh(self):
-#         x = self.data
-#         t = (math.exp(2 * x) - 1) / (math.exp(2 * x) + 1)
+    def tanh(self):
+        x = self.data
+        t = ((np.exp(2 * x) - 1) / (np.exp(2 * x) + 1))
+        out = Tensor(t, (self,), "tanh")
 
-#         out = Value(t, (self,), "tanh")
+        def _backward():
+            self.grad += (1 - t**2) * out.grad
 
-#         def _backward():
-#             self.grad += (1 - t**2) * out.grad
-
-#         out._backward = _backward
-#         return out
+        out._backward = _backward
+        return out
     
-#     def exp(self):
-#         x = self.data
+    def exp(self):
+        x = self.data
         
-#         out = Value(math.exp(x), (self,), "exp")
+        out = Tensor(np.exp(x), (self,), "exp")
 
-#         def _backward():
-#             self.grad += out.data * out.grad
+        def _backward():
+            self.grad += out.data * out.grad
 
-#         out._backward = _backward
-#         return out
+        out._backward = _backward
+        return out
 
 
     def backward(self):
-        self.grad = 1
+        self.grad = np.ones_like(self.data, dtype=np.float32)
         topo = []
         visited = set()
 
@@ -175,16 +172,18 @@ class Tensor:
 
 
 # class Neuron():
-#     def __init__(self, nin):
-#         self.w = [Value(random.uniform(-1, 1)) for _ in range(nin)]
-#         self.b = Value(random.uniform(-1, 1)) 
+#     def __init__(self, nin, shape):
+#         self.w = [Tensor(np.random.uniform(low=-1, high=1, size = shape)) for _ in range(nin)]
+#         self.b = Tensor(random.uniform(-1, 1)) 
     
 #     def __call__(self, x):
 #         # x * w + b
         
-#         act =  sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
-#         out = act.tanh()
-#         return out
+#         assert self.w[0].data.shape == x.shape
+           
+#         act =  np.sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
+#         # out = act.tanh()
+#         # return out
     
 #     def parameters(self):
 #         return self.w + [self.b]
@@ -214,27 +213,21 @@ class Tensor:
 
 if __name__ == "__main__":
 
+    a = Tensor(np.array([[1,2],[1,2]]))
+    b = Tensor(np.array([[1,2],[1,2]]))
+
+    c = a @ b
     
-    arr = np.array([[1,2],[1,2]])
-    arr1 = np.array([[1,2],[1,2]])
     
-    # let's make this easier by using numpy
-    a = Tensor(arr)
-    b = Tensor(arr1)
-    
-        
-    L = a * b
 
     
-
-    L.grad = 1.0
-    
-    L._backward()
-    
-    print("gradients")
+    c.backward()
     print(a.grad)
     print(b.grad)
-    print(L.data, L.grad)
+    print(c.grad)
+    # L = c.tanh()
+    # L.backward()
+    #c.backward()
     
 
 
