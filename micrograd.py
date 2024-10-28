@@ -57,14 +57,33 @@ class Tensor:
 
         out._backward = __backward
         return out
+    
+    
     def __matmul__(self, other):
         #matrix multiplication
+
+        # [[1,2],[1,2]] @ [[1,2],[1,2]] = [[3,6],[3,6]] = c
+
+        # the derivative of the matmul with respect to c (i.e c = a @ b)
+        # would be dc/da, dc/db. We need to compute how each element of a or b
+        # affects c. 
+        # A = [[a11m a12],[a21, a22]] B = [[b11, b12],[b21, b22]] 
+        # C = [[a11*b11 + a12*b21, a11*b12 + a12*b22],[a21*b11 + a22*b21, a21*b12 + a22*b22]]
+        # 
+        # dc/da = dc11/da, dc12/da, dc21/da, dc22/da (partial derivatives of c 
+        # with respect to a == jacobian)
+        # Since this takes too much, we can use the transposed matrix, if there's a loss
+        # function after C, then we want to compute dL/dA = dL/dC * dC/dA (chain rule) =
+        # dL/dC * B^T (b transposed, dC/dA = B^T), * is matmul
+        #
+        # 
+
         other = other if isinstance(other, Tensor) else Tensor(other)
-        out = Tensor(np.matmul(self.data, other.data), (self, other), "*")
+        out = Tensor(self.data @ other.data, (self, other), "@")
 
         def _backward():
-            self.grad += other.data * out.grad
-            other.grad += self.data * out.grad
+            self.grad += other.data.T @ out.grad
+            other.grad += self.data.T @ out.grad
 
         out._backward = _backward
         return out
@@ -96,22 +115,22 @@ class Tensor:
 #         return out
 
 
-#     def backward(self):
-#         self.grad = 1
-#         topo = []
-#         visited = set()
+    def backward(self):
+        self.grad = 1
+        topo = []
+        visited = set()
 
-#         def build_topo(v):
-#             if v not in visited:
-#                 visited.add(v)
-#                 for child in v._prev:
-#                     build_topo(child)
-#                 topo.append(v)
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
 
-#         build_topo(self)
+        build_topo(self)
 
-#         for v in reversed(topo):
-#             v._backward()
+        for v in reversed(topo):
+            v._backward()
 
 # def trace(root):
 #     nodes, edges = set(), set()
