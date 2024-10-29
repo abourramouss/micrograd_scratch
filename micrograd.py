@@ -35,7 +35,15 @@ class Tensor:
         return out
 
     def __sub__(self, other):
-        return self + (-other)
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(self.data - other.data, (self, other), "-")
+        
+        def _backward():
+            self.grad += out.grad
+            other.grad -= out.grad
+
+        out._backward = _backward
+        return out
 
     def __truediv__(self, other):
         return self * other**-1
@@ -85,8 +93,6 @@ class Tensor:
         out = Tensor(self.data @ other.data, (self, other), "@")
         def _backward():            
             self.grad += out.grad @ other.data.T
-            print(self.data)
-            print(out.grad)
             other.grad += self.data.T @ out.grad
         out._backward = _backward
         return out
@@ -118,11 +124,12 @@ class Tensor:
 
 
     def backward(self, nin):
-        self.grad = np.ones_like(self.data, dtype=np.float32, shape=(nin,1))
-        print(f"first activation gradient: {self.grad}")
+        self.grad = np.ones((1, 1), dtype=np.float32)  # Use 1x1 matrix for consistency
+ 
+ 
         topo = []
         visited = set()
-
+ 
         def build_topo(v):
             if v not in visited:
                 visited.add(v)
@@ -134,7 +141,6 @@ class Tensor:
 
         for v in reversed(topo):
             v._backward()
-            print(v.grad)
 
 def trace(root):
     nodes, edges = set(), set()
@@ -211,98 +217,88 @@ class Neuron():
         out = x @ self.w + self.b
         return out
 
-        
-        
-
-        #x = [1,2] = x1, x2
-        #act = np.sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
-        # out = act.tanh()
-        # return out
-    
     def parameters(self):
-        return self.w + [self.b]
+        return [self.w ,self.b]
 
-# class Layer:
-#     def __init__(self, nin, nout):
-#         self.neurons = [Neuron(nin) for _ in range(nout)]
+class Layer:
+    def __init__(self, nin, nout):
+        self.neurons = [Neuron(nin) for _ in range(nout)]
     
-#     def __call__(self, x):
-#         outs = [neuron(x) for neuron in self.neurons]
+    def __call__(self, x):
+        outs = [neuron(x) for neuron in self.neurons]
 
-#         return outs[0] if len(outs) == 1 else outs 
+        return outs[0] if len(outs) == 1 else outs 
  
-#     def parameters(self):
-#         return [p for neuron in self.neurons for p in neuron.parameters()]
-# class MLP:
-#     def __init__(self, nin, nouts):
-#         sz = [nin] + nouts
-#         self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]   
+    def parameters(self):
+        return [p for neuron in self.neurons for p in neuron.parameters()]
+class MLP:
+    def __init__(self, nin, nouts):
+        sz = [nin] + nouts
+        self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]   
 
-#     def __call__(self, x):
-#         for layer in self.layers:
-#             x = layer(x)
-#         return x
-#     def parameters(self):
-#         return [p for layer in self.layers for p in layer.parameters()]
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+    def parameters(self):
+        return [p for layer in self.layers for p in layer.parameters()]
 
 if __name__ == "__main__":
-
-    a = Tensor(np.array([1,2]))
-    # b = Tensor(np.array([[1,2],[1,2]]))
-
-    # c = a @ b
-
-    # d = Tensor(np.array([[1,2],[1,2]]))
-    # e = Tensor(np.array([[1,2],[1,2]]))  
-    
-    # f = d * e
-
-    # z = c + f
-
-    
-    # z.backward()
-    # print(a.grad)
-    # print(b.grad)
-    # print(c.grad)
-    
-    # draw_dot(z)
-
-
-    n = Neuron(2)
-    activation = n(a)
-    activation.backward(2)
-    
-
-
-    draw_dot(activation)
-    #we just have one neuron, with one input as a tensor, now we need to think how to
-    #implement the forward pass.
-    # L = c.tanh()
-    # L.backward()
-    #c.backward()
     
 
 
     # n = MLP(3, [4,4,1])
-    # print(n.parameters())
     # xs = [
     #    [2.0, 3.0, -1.0],
     #    [3.0, -1.0, 0.5],
     #    [0.5, 1.0, 1.0],
     #    [1.0, 1.0, -1.0]
     # ]
+
+    # xs = [Tensor(x) for x in xs]
     
 
 
     # #Implement the trainning loop
 
-    # ys = [1.0, -1.0, -1.0, 1.0]
+    # ys = [Tensor([1.0]) for _ in range(4)]
     # for epoch in range(20):
     #     ypred = [n(x) for x in xs]
-    #     loss = sum(((yout - ygt)**2 for ygt, yout in zip(ys, ypred)), start=Value(0))
+    #     loss = sum(((yout - ygt)**2 for ygt, yout in zip(ys, ypred)), start=Tensor(0))
     #     loss.backward()
     #     for p in n.parameters():
     #         p.data += -0.01 * p.grad
 
 
     #     print(f"Epoch {epoch} Loss {loss.data}")
+
+    tensor = Tensor(np.array([[1,2]]))
+    predicted_output = Tensor(np.array([[1]]))
+    
+    layer = Layer(2, 1)
+
+    
+    def mse(y_pred, y_gt):
+        return (y_pred - y_gt)**2
+
+
+
+
+    for i in range(10):
+        
+        #forward pass
+        output = layer(tensor)
+
+        #loss
+        loss = mse(output, predicted_output)
+
+        #backward pass
+        loss.backward(1)
+
+        #update weights
+        for p in layer.parameters():
+            p.data += -0.01 * p.grad
+
+        print(f"Epoch {i} Loss {loss.data}")
+    
+    
