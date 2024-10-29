@@ -85,6 +85,8 @@ class Tensor:
         out = Tensor(self.data @ other.data, (self, other), "@")
         def _backward():            
             self.grad += out.grad @ other.data.T
+            print(self.data)
+            print(out.grad)
             other.grad += self.data.T @ out.grad
         out._backward = _backward
         return out
@@ -115,8 +117,9 @@ class Tensor:
         return out
 
 
-    def backward(self):
-        self.grad = np.ones_like(self.data, dtype=np.float32)
+    def backward(self, nin):
+        self.grad = np.ones_like(self.data, dtype=np.float32, shape=(nin,1))
+        print(f"first activation gradient: {self.grad}")
         topo = []
         visited = set()
 
@@ -131,6 +134,7 @@ class Tensor:
 
         for v in reversed(topo):
             v._backward()
+            print(v.grad)
 
 def trace(root):
     nodes, edges = set(), set()
@@ -266,8 +270,8 @@ if __name__ == "__main__":
 
     n = Neuron(2)
     activation = n(a)
-    activation.backward()
-
+    activation.backward(2)
+    
 
 
     draw_dot(activation)
