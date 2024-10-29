@@ -273,7 +273,7 @@ if __name__ == "__main__":
     #     print(f"Epoch {epoch} Loss {loss.data}")
 
     tensor = Tensor(np.array([[1,2]]))
-    predicted_output = Tensor(np.array([[1]]))
+    predicted_output = Tensor(np.array([[5]]))
     
     layer = Layer(2, 1)
 
@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
         #update weights
         for p in layer.parameters():
-            p.data += -0.01 * p.grad
+            p.data += -0.001* p.grad
 
         print(f"Epoch {i} Loss {loss.data}")
     
