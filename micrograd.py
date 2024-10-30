@@ -284,6 +284,8 @@ if __name__ == "__main__":
 
 
 
+    #FIXME: MLP doesn't work yet
+
     for i in range(10):
         
         #forward pass
@@ -291,7 +293,7 @@ if __name__ == "__main__":
 
         #loss
         loss = mse(output, predicted_output)
-
+        draw_dot(loss)
         #backward pass
         loss.backward(1)
 
